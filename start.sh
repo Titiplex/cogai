@@ -1,0 +1,1 @@
+coverage run -m trace --trace --count -C . src/cogai/cogai.py --text1 C:/Users/Titiplex/PycharmProjects/CogAI/resources/setanc.txt --text2 C:/Users/Titiplex/PycharmProjects/CogAI/resources/setmod.txt
