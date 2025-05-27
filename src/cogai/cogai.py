@@ -36,11 +36,12 @@ from rapidfuzz.process import cdist
 from rich.console import Console
 from rich.live import Live
 from rich.progress import (
-    Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn, TaskID
+    Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn, TaskID, TimeRemainingColumn
 )
 from rich.table import Table
 
-from cogai.helpers import save_checkpoint, load_checkpoint
+from utils.helpers import save_checkpoint, load_checkpoint
+from utils.rule import Rule
 
 console = Console()
 
@@ -235,38 +236,6 @@ def gen_candidates(
 
     return results
 
-
-###############################################################################
-# 4. Rule representation
-###############################################################################
-class Rule:
-    __slots__ = ("f_in", "f_out", "l", "r")
-
-    def __init__(self, fi: str, fo: str, l: str, r: str):
-        self.f_in, self.f_out, self.l, self.r = fi, fo, l, r
-
-    def apply(self, word: str) -> str:
-        a: list[str] = list(word)
-        L = len(a)
-        for i, ch in enumerate(a):
-            if ch != self.f_in:
-                continue
-            if (
-                    (self.l == "#" and i == 0)
-                    or (self.l != "#" and i and a[i - 1] == self.l)
-            ) and (
-                    (self.r == "#" and i == L - 1)
-                    or (self.r != "#" and i < L - 1 and a[i + 1] == self.r)
-            ):
-                a[i] = self.f_out
-        return "".join(a)
-
-    def __str__(self):
-        l = self.l if self.l != "#" else "⟨#⟩"
-        r = self.r if self.r != "#" else "⟨#⟩"
-        return f"{self.f_in}→{self.f_out}/{l}_ {r}"
-
-
 ###############################################################################
 # 5. Beam‑search rule induction
 ###############################################################################
@@ -278,12 +247,20 @@ def induce_rules(
         beam: int = 30,
         show_ui: bool = False,
 ):
-    prog: Progress = Progress()
-    task: TaskID = prog.add_task("")
     if show_ui:
-        prog = Progress(...)
+        # Create Progress object with proper configuration
+        prog = Progress(
+            "[progress.description]{task.description}",
+            BarColumn(),
+            "[progress.percentage]{task.percentage:>3.0f}%",
+            TimeRemainingColumn(),
+        )
         task = prog.add_task("depth", total=max_rules)
-        prog.start()
+    else:
+        # Create a simple Progress object for non-UI mode
+        prog = Progress()
+        task = prog.add_task("")
+
 
     # pre‑cache ASJP forms
     parent_asjp = {p: ipa2asjp(p) for (p, _) in pairs.keys() }
@@ -474,8 +451,8 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser("Few‑shot sound‑change inducer (ultra edition)")
     ap.add_argument("--text1", required=True, help="Chemin vers texte brut L1 (parent)")
     ap.add_argument("--text2", required=True, help="Chemin vers texte brut L2 (daughter)")
-    ap.add_argument("--load", default="C:/Users/Titiplex/PycharmProjects/CogAI/resources/db/checkpoint.json", help="Checkpoint à charger avant d’entraîner")
-    ap.add_argument("--save", default="C:/Users/Titiplex/PycharmProjects/CogAI/resources/db/checkpoint.json", help="Où écrire le checkpoint final")
+    ap.add_argument("--load", help="Checkpoint à charger avant d’entraîner")
+    ap.add_argument("--save", help="Où écrire le checkpoint final")
     ap.add_argument("--iters", type=int, default=3)
     ap.add_argument("--max_rules", type=int, default=3)
     ap.add_argument("--beam", type=int, default=30, help="Largeur du beam pour la recherche de règles")

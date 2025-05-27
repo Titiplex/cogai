@@ -1,7 +1,0 @@
-[CogAi]
-version = "B.0.1"
-requires-python = ">= 3.1"
-
-dependancies = [
-
-]

@@ -1,8 +1,6 @@
 import json
 from pathlib import Path
-
-from cogai.cogai import Rule
-
+from .rule import  Rule
 
 def save_checkpoint(path: Path,
                     rules: list[Rule],
@@ -18,7 +16,6 @@ def save_checkpoint(path: Path,
 def load_checkpoint(path: Path) -> tuple[list[Rule], dict[tuple[str,str], float]]:
 
     ckpt = json.loads(path.read_text("utf8"))
-
     rules: list[Rule] = [Rule(*t) for t in ckpt["rules"]]
 
     pairs: dict[tuple[str,str], float] = {
