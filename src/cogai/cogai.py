@@ -40,6 +40,8 @@ from rich.progress import (
 )
 from rich.table import Table
 
+from cogai.helpers import save_checkpoint, load_checkpoint
+
 console = Console()
 
 ###############################################################################
@@ -244,7 +246,7 @@ class Rule:
         self.f_in, self.f_out, self.l, self.r = fi, fo, l, r
 
     def apply(self, word: str) -> str:
-        a = list(word)
+        a: list[str] = list(word)
         L = len(a)
         for i, ch in enumerate(a):
             if ch != self.f_in:
@@ -344,6 +346,8 @@ def em_loop(
         parent: List[str],
         daughter: List[str],
         *,
+        init_rules: list[Rule] | None = None,
+        init_pairs: dict[tuple[str,str], float] | None = None,
         iters: int = 2,
         max_rules: int = 2,
         beam: int = 15,
@@ -354,9 +358,16 @@ def em_loop(
         show_ui: bool = False,
 ):
     # ---------------- candidate bootstrap ----------------
-    pairs = gen_candidates(parent, daughter, k, len_win=len_win, show_ui=show_ui)
+    # 1) si on a déjà des poids, on les reprend, sinon on (re)génère
+    if init_pairs is not None:
+        pairs = init_pairs.copy()
+    else:
+        pairs = gen_candidates(parent, daughter, k, len_win=len_win, show_ui=show_ui)
 
-    prog, score = List[Rule], float
+    if init_rules is not None:
+        prog = init_rules
+    else:
+        prog, score = induce_rules(pairs, max_rules, beam=beam)
     answered = 0
 
     def render_dash(iter_no: int, delta_: float) -> Table:
@@ -433,9 +444,15 @@ def main(args):
     parent = load_wordlist(Path(args.text1))
     daughter = load_wordlist(Path(args.text2))
 
-    rules, _ = em_loop(
+    init_rules = init_pairs = None
+    if args.load and Path(args.load).exists():
+        init_rules, init_pairs = load_checkpoint(Path(args.load))
+
+    rules, pairs = em_loop(
         parent,
         daughter,
+        init_rules=init_rules,
+        init_pairs=init_pairs,
         iters=args.iters,
         max_rules=args.max_rules,
         beam=args.beam,
@@ -449,11 +466,16 @@ def main(args):
     console.rule("RESULTS")
     console.print("Rules:", ', '.join(map(str, rules)))
 
+    if args.save:
+        save_checkpoint(Path(args.save), rules, pairs)
+
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser("Few‑shot sound‑change inducer (ultra edition)")
     ap.add_argument("--text1", required=True, help="Chemin vers texte brut L1 (parent)")
     ap.add_argument("--text2", required=True, help="Chemin vers texte brut L2 (daughter)")
+    ap.add_argument("--load", default="C:/Users/Titiplex/PycharmProjects/CogAI/resources/db/checkpoint.json", help="Checkpoint à charger avant d’entraîner")
+    ap.add_argument("--save", default="C:/Users/Titiplex/PycharmProjects/CogAI/resources/db/checkpoint.json", help="Où écrire le checkpoint final")
     ap.add_argument("--iters", type=int, default=3)
     ap.add_argument("--max_rules", type=int, default=3)
     ap.add_argument("--beam", type=int, default=30, help="Largeur du beam pour la recherche de règles")

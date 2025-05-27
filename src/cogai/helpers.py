@@ -16,10 +16,17 @@ def save_checkpoint(path: Path,
 
 
 def load_checkpoint(path: Path) -> tuple[list[Rule], dict[tuple[str,str], float]]:
+
     ckpt = json.loads(path.read_text("utf8"))
+
     rules: list[Rule] = [Rule(*t) for t in ckpt["rules"]]
+
     pairs: dict[tuple[str,str], float] = {
-        tuple(k.split("|||")): w
+        # on décompose la clé en deux variables p et d, toutes deux str
+        (p, d): float(w)
         for k, w in ckpt["pairs"].items()
+        for p, d in [k.split("|||", 1)]
     }
+
     return rules, pairs
+

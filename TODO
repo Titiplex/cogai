@@ -1,0 +1,10 @@
+//TODO
+
+6. (Optionnel) mémo-caches supplémentaires
+ipa2asjp : ajoutez en fin de session
+
+json.dump(ipa2asjp.cache_info(), open("asjp_cache.json", "w"))
+et rechargez-le au démarrage.
+
+Matrices de distances : si vous traitez toujours les mêmes listes géantes,
+stockez‐les dans joblib.dump(np.array_mat, "distances.z").
